@@ -1,0 +1,35 @@
+# API and worker are separate services on purpose: they scale independently,
+# and a worker crash never takes the API down with it.
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/data
+      - ./out:/out
+      - state:/state
+    environment:
+      WSIQC_LOG_LEVEL: INFO
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  worker:
+    build: .
+    command: ["python", "-m", "wsiqc", "worker"]
+    volumes:
+      - ./data:/data
+      - ./out:/out
+      - state:/state
+    environment:
+      WSIQC_LOG_LEVEL: INFO
+      WSIQC_WORKER_PROCESSES: "2"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  state:
